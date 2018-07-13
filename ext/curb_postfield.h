@@ -31,6 +31,8 @@ typedef struct {
 
 extern VALUE cCurlPostField;
 
+VALUE is_a_file_upload(VALUE self);
+
 void append_to_form(VALUE self, 
                     struct curl_httppost **first, 
                     struct curl_httppost **last);

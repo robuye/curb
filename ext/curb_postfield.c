@@ -18,6 +18,30 @@ static VALUE idCall;
 VALUE cCurlPostField;
 
 
+/* This tells if the PostField is a file upload or not.
+ *
+ * File upload should never be sent with 'application/x-www-form-urlencoded'
+ * Content-Type. It is technically possible (RFC does not forbid it), but no
+ * sane client would do such a thing.
+ *
+ * It is still possible by setting the payload manually as a string, this
+ * however requires special care when crafting a payload and is not advised.
+ *
+ * If file is detected in a PostField and Content-Type is 'x-www-form-urlencoded'
+ * we will raise an exception down the line.
+ */
+VALUE is_a_file_upload(VALUE self) {
+  ruby_curl_postfield *rbcpf;
+
+  Data_Get_Struct(self, ruby_curl_postfield, rbcpf);
+
+  if ((rbcpf->remote_file == Qnil) && (rbcpf->local_file == Qnil)) {
+    return Qfalse;
+  } else {
+    return Qtrue;
+  }
+}
+
 /* ================= APPEND FORM FUNC ================ */
 
 /* This gets called by the post method on Curl::Easy for each postfield
@@ -37,7 +61,7 @@ void append_to_form(VALUE self,
   if (rbcpf->name == Qnil) {
     rb_raise(eCurlErrInvalidPostField, "Cannot post unnamed field");
   } else {
-    if ((rbcpf->local_file != Qnil) || (rbcpf->remote_file != Qnil)) {
+    if (is_a_file_upload(self)) {
       // is a file upload field
       if (rbcpf->content_proc != Qnil) {
         // with content proc

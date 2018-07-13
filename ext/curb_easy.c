@@ -2513,7 +2513,24 @@ static VALUE ruby_curl_easy_perform_post(int argc, VALUE *argv, VALUE self) {
     return ret;
   } else {
     VALUE post_body = Qnil;
-    /* TODO: check for PostField.file and raise error before to_s fails */
+    // check for PostField.file and raise error before to_s fails
+    for (i = 0; i < argc; i++) {
+      if (rb_obj_is_instance_of(argv[i], cCurlPostField)) {
+        if (is_a_file_upload(argv[i])) {
+          // is a PostField with file upload
+          rb_raise(eCurlErrHTTPPost, "File upload field requires multipart_form_post.");
+          return Qnil;
+        }
+        // is a PostField with raw content
+      } else if (rb_type(argv[i]) == T_STRING) {
+        // string NOOP, OK
+      } else if (rb_respond_to(argv[i], rb_intern("to_s"))) {
+        // responds to to_s, OK
+      } else {
+        rb_raise(eCurlErrHTTPPost, "Invalid field type. Must be a String, Curl::PostField or respond to #to_s");
+      }
+    }
+
     if ((post_body = rb_funcall(args_ary, idJoin, 1, rbstrAmp)) == Qnil) {
       rb_raise(eCurlErrError, "Failed to join arguments");
       return Qnil;

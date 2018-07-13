@@ -1,5 +1,5 @@
 require File.expand_path(File.join(File.dirname(__FILE__), 'helper'))
-class FooNoToS 
+class FooNoToS
   undef to_s
 end
 
@@ -727,6 +727,26 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     curl.http_post(pf)
     assert_match(/HTTP POST file upload/, curl.body_str)
     assert_match(/Content-Disposition: form-data/, curl.body_str)
+  end
+
+  def test_post_urlencoded_file_upload
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.multipart_form_post = false
+    pf = Curl::PostField.file('readme', File.expand_path(File.join(File.dirname(__FILE__),'..','README.markdown')))
+
+    error_message = 'File upload field requires multipart_form_post.'
+    error = Curl::Err::HTTPPostError.new(error_message)
+    assert_raise(error) { curl.http_post(pf) }
+  end
+
+  def test_post_urlencoded_not_to_s
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.multipart_form_post = false
+    pf = FooNoToS.new
+
+    error_message = 'Invalid field type. Must be a String, Curl::PostField or respond to #to_s'
+    error = Curl::Err::HTTPPostError.new(error_message)
+    assert_raise(error) { curl.http_post(pf) }
   end
 
   def test_delete_remote
