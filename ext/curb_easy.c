@@ -666,6 +666,30 @@ static VALUE ruby_curl_easy_cert_get(VALUE self) {
 
 /*
  * call-seq:
+ *   easy.capath = string
+ *
+ * Set a cert path to use for this Curl::Easy instance. This dir
+ * should be prepared using `c_rehash` and will be used to validate
+ * SSL connections.
+ *
+ */
+static VALUE ruby_curl_easy_capath_set(VALUE self, VALUE capath) {
+  CURB_OBJECT_HSETTER(ruby_curl_easy, capath);
+}
+
+/*
+ * call-seq:
+ *   easy.capath                                   => string
+ *
+ * Obtain the cert path to use for this Curl::Easy instance.
+ */
+static VALUE ruby_curl_easy_capath_get(VALUE self) {
+  CURB_OBJECT_HGETTER(ruby_curl_easy, capath);
+}
+
+
+/*
+ * call-seq:
  *   easy.cert_key = "cert_key.file"                  => ""
  *
  * Set a cert key to use for this Curl::Easy instance. This file
@@ -2452,6 +2476,12 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
   }
 #endif
 
+#ifdef HAVE_CURLOPT_CAPATH
+  if (!rb_easy_nil("capath")) {
+    curl_easy_setopt(curl, CURLOPT_CAPATH, rb_easy_get_str("capath"));
+  }
+#endif
+
 #ifdef CURL_VERSION_SSL
   if (rbce->ssl_version > 0) {
     curl_easy_setopt(curl, CURLOPT_SSLVERSION, rbce->ssl_version);
@@ -3409,6 +3439,52 @@ static VALUE ruby_curl_easy_ftp_entry_path_get(VALUE self) {
 
 /*
  * call-seq:
+ *   easy.cert_info                                     => array
+ *
+ * Retrieve certificate information from easy handle. This will be populated only
+ * if the handle was configured with CURLOPT_CERTINFO.
+ *
+ * Returns an array of strings describing SSL certificates used for this handle.
+ * If the method is called before this information is available it will return
+ * an empty array.
+ *
+ */
+static VALUE ruby_curl_easy_cert_info_get(VALUE self) {
+#if HAVE_CURLOPT_CERTINFO
+  ruby_curl_easy *rbce;
+  struct curl_certinfo *ci;
+  CURLcode ecode;
+  VALUE result;
+  int i;
+
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+
+  ecode = curl_easy_getinfo(rbce->curl, CURLINFO_CERTINFO, &ci);
+  if (ecode != CURLE_OK) raise_curl_easy_error_exception(ecode);
+
+  result = rb_ary_new2(ci->num_of_certs);
+
+  for (i = 0; i < ci->num_of_certs; i++) {
+    struct curl_slist *slist;
+    VALUE rb_certinfo = rb_str_new2("");
+
+    for(slist = ci->certinfo[i]; slist; slist = slist->next) {
+      rb_str_cat2(rb_certinfo, slist->data);
+      rb_str_cat2(rb_certinfo, "\n");
+    }
+
+    rb_ary_store(result, (long) i, rb_certinfo);
+  }
+
+  return result;
+#else
+  rb_warn("Installedlibcurl does support CURLINFO_CERTINFO");
+  return rb_ary_new2(0);
+#endif
+}
+
+/*
+ * call-seq:
  *   easy.multi                                     => "#<Curl::Multi>"
  */
 static VALUE ruby_curl_easy_multi_get(VALUE self) {
@@ -3447,6 +3523,7 @@ static VALUE ruby_curl_easy_last_result(VALUE self) {
 static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
   ruby_curl_easy *rbce;
   long option = NUM2LONG(opt);
+  CURLcode ecode;
 
   Data_Get_Struct(self, ruby_curl_easy, rbce);
 
@@ -3570,6 +3647,18 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
 #if HAVE_CURLOPT_MAXFILESIZE
   case CURLOPT_MAXFILESIZE:
     curl_easy_setopt(rbce->curl, CURLOPT_MAXFILESIZE, NUM2LONG(val));
+    break;
+#endif
+#if HAVE_CURLOPT_CAPATH
+  case CURLOPT_CAPATH:
+    ecode = curl_easy_setopt(rbce->curl, CURLOPT_CAPATH, StringValuePtr(val));
+    if (ecode != CURLE_OK) raise_curl_easy_error_exception(ecode);
+    break;
+#endif
+#if HAVE_CURLOPT_CERTINFO
+  case CURLOPT_CERTINFO:
+    ecode = curl_easy_setopt(rbce->curl, CURLOPT_CERTINFO, NUM2LONG(val));
+    if (ecode != CURLE_OK) raise_curl_easy_error_exception(ecode);
     break;
 #endif
   default:
@@ -3725,6 +3814,8 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "cert_key", ruby_curl_easy_cert_key_get, 0);
   rb_define_method(cCurlEasy, "cacert=", ruby_curl_easy_cacert_set, 1);
   rb_define_method(cCurlEasy, "cacert", ruby_curl_easy_cacert_get, 0);
+  rb_define_method(cCurlEasy, "capath=", ruby_curl_easy_capath_set, 1);
+  rb_define_method(cCurlEasy, "capath", ruby_curl_easy_capath_get, 0);
   rb_define_method(cCurlEasy, "certpassword=", ruby_curl_easy_certpassword_set, 1);
   rb_define_method(cCurlEasy, "certtype=", ruby_curl_easy_certtype_set, 1);
   rb_define_method(cCurlEasy, "certtype", ruby_curl_easy_certtype_get, 0);
@@ -3780,6 +3871,7 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "use_ssl", ruby_curl_easy_use_ssl_get, 0);
   rb_define_method(cCurlEasy, "ftp_filemethod=", ruby_curl_easy_ftp_filemethod_set, 1);
   rb_define_method(cCurlEasy, "ftp_filemethod", ruby_curl_easy_ftp_filemethod_get, 0);
+  rb_define_method(cCurlEasy, "cert_info", ruby_curl_easy_cert_info_get, 0);
 
   rb_define_method(cCurlEasy, "username=", ruby_curl_easy_username_set, 1);
   rb_define_method(cCurlEasy, "username", ruby_curl_easy_username_get, 0);

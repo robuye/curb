@@ -648,6 +648,31 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_match(/somevalue/, c.cookielist.join(''))
   end
 
+  def test_cert_info
+    easy = Curl::Easy.new('https://self-signed.badssl.com/')
+    easy.capath = File.join(Dir.pwd, "tests", "support", "ssl")
+    easy.set(Curl::CURLOPT_CERTINFO, 1)
+    easy.perform
+
+    assert_equal(1, easy.cert_info.size)
+    assert_match("*.badssl.com", easy.cert_info[0])
+  end
+
+  def test_capath
+    ca_path =  File.join(Dir.pwd, "tests", "support", "ssl")
+    easy = Curl::Easy.new('https://self-signed.badssl.com/')
+    easy.capath = ca_path
+
+    assert_equal(ca_path, easy.capath)
+    assert_nothing_raised { easy.perform }
+  end
+
+  def test_self_signed_cert_error
+    easy = Curl::Easy.new('https://self-signed.badssl.com/')
+
+    assert_raise(Curl::Err::SSLCACertificateError) { easy.perform }
+  end
+
   def test_on_success
     curl = Curl::Easy.new($TEST_URL)    
     on_success_called = false
@@ -861,13 +886,13 @@ class TestCurbCurlEasy < Test::Unit::TestCase
   #   -keyout tests/cert.pem  -out tests/cert.pem
   def test_cert
     curl = Curl::Easy.new(TestServlet.url)
-    curl.cert= File.join(File.dirname(__FILE__),"cert.pem")
+    curl.cert= File.join(File.dirname(__FILE__), "support", "ssl", "cert.pem")
     assert_match(/cert.pem$/,curl.cert)
   end
 
   def test_cert_with_password
     curl = Curl::Easy.new(TestServlet.url)
-    path = File.join(File.dirname(__FILE__),"cert.pem")
+    path = File.join(File.dirname(__FILE__), "support", "ssl", "cert.pem")
     curl.certpassword = 'password'
     curl.cert = path
     assert_match(/cert.pem$/,curl.cert)
@@ -890,7 +915,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
   # http://technocage.com/~caskey/openssl/
   def test_ca_cert
     curl = Curl::Easy.new(TestServlet.url)
-    curl.cacert= File.join(File.dirname(__FILE__),"cacert.pem")
+    curl.cacert= File.join(File.dirname(__FILE__), "support", "ssl", "cacert.pem")
     assert_match(/cacert.pem$/, curl.cacert)
   end
 

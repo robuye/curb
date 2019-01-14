@@ -318,7 +318,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     urls = []
     downloads = []
     file_info = {}
-    FileUtils.mkdir("tmp/")
+    FileUtils.mkdir("tmp/") unless File.exist?("tmp")
 
     # for each file store the size by file name
     Dir[File.dirname(__FILE__) + "/../ext/*.c"].each do|path|
