@@ -3650,16 +3650,16 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     break;
 #endif
 #if HAVE_CURLOPT_CAPATH
-  case CURLOPT_CAPATH:
+  case CURLOPT_CAPATH: {
     ecode = curl_easy_setopt(rbce->curl, CURLOPT_CAPATH, StringValuePtr(val));
-    if (ecode != CURLE_OK) raise_curl_easy_error_exception(ecode);
-    break;
+    if (ecode != CURLE_OK) { raise_curl_easy_error_exception(ecode); }
+    } break;
 #endif
 #if HAVE_CURLOPT_CERTINFO
-  case CURLOPT_CERTINFO:
+  case CURLOPT_CERTINFO: {
     ecode = curl_easy_setopt(rbce->curl, CURLOPT_CERTINFO, NUM2LONG(val));
     if (ecode != CURLE_OK) raise_curl_easy_error_exception(ecode);
-    break;
+    } break;
 #endif
   default:
     rb_raise(rb_eTypeError, "Curb unsupported option");
