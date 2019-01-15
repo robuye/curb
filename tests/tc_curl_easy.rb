@@ -651,6 +651,8 @@ class TestCurbCurlEasy < Test::Unit::TestCase
   def test_cert_info
     easy = Curl::Easy.new('https://self-signed.badssl.com/')
     easy.capath = File.join(Dir.pwd, "tests", "support", "ssl")
+    puts easy.capath.inspect
+    puts Curl::CURLOPT_CERTINFO.inspect
     easy.set(Curl::CURLOPT_CERTINFO, 1)
     easy.perform
 
@@ -664,6 +666,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     easy.capath = ca_path
 
     assert_equal(ca_path, easy.capath)
+    puts easy.capath.inspect
     assert_nothing_raised { easy.perform }
   end
 

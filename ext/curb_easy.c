@@ -3450,7 +3450,7 @@ static VALUE ruby_curl_easy_ftp_entry_path_get(VALUE self) {
  *
  */
 static VALUE ruby_curl_easy_cert_info_get(VALUE self) {
-#if HAVE_CURLOPT_CERTINFO
+#if HAVE_CURLINFO_CERTINFO
   ruby_curl_easy *rbce;
   struct curl_certinfo *ci;
   CURLcode ecode;
